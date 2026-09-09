@@ -688,14 +688,23 @@ def _compose_appeal(kind: str, nomor_clean: str, jam: str) -> str:
     return body.replace("{nomor}", nomor_clean).replace("{jam}", jam)
 
 
-def pick_appeal_text(kind: str, nomor_clean: str, limit_hours: int = 24, template: str | None = None) -> str:
+def pick_appeal_text(kind: str, nomor_clean: str, limit_hours: int = 24,
+                     template: str | None = None,
+                     sms_countdown: str | None = None) -> str:
     """Ambil teks banding panjang multi-bahasa untuk FAQ / email / form.
 
     kind: 'faq' | 'banding' | 'form'. template custom (/set) override semua.
     Default: 90% pool panjang internasional (faq_appeal_texts), 10% komposisi
     komponen (variasi kecil). Placeholder {nomor} {jam} / {hours}.
+
+    sms_countdown : string countdown "HH:MM:SS" hasil detect real (opsional).
+                    Kalau diisi, dipakai buat ganti {jam} apa adanya di teks
+                    banding — lebih akurat daripada round-up ke jam bulat.
     """
-    jam = str(int(limit_hours) if limit_hours else 24)
+    if sms_countdown:
+        jam = str(sms_countdown).strip()
+    else:
+        jam = str(int(limit_hours) if limit_hours else 24)
     if template:
         t = str(template)
         t = t.replace("{nomor}", nomor_clean).replace("{jam}", jam).replace("{hours}", jam)
@@ -1182,8 +1191,14 @@ def run_reset_otp_pipeline(numbers, db_cur=None, db_conn=None, message_template=
                            senders_per_nomor=None, faq2_total=None, subject=None,
                            mode: str = "hard", limit_hours: int = 24,
                            faq_total=None, faq1_total=None, banding_total=None,
-                           faq3_total=None, faq4_total=None):
+                           faq3_total=None, faq4_total=None,
+                           sms_countdown: str | None = None):
     """Orchestrator RESET OTP (email banding + Form V1/V2/V3/V4).
+
+    sms_countdown : optional "HH:MM:SS" hasil detect real (sms_wait). Kalau
+                    diisi, semua teks banding pakai countdown ini (bukan
+                    round-up jam bulat) supaya cocok dengan bukti screenshot
+                    "Try again in HH:MM:SS".
 
     Form V3: Gmail/iCloud SMTP + lampiran logs/foto, default 2 kirim (easy & hard).
     Form V4: iCloud SMTP (dikzxinxz), default 1 kirim (easy & hard).
