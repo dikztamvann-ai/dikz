@@ -11190,13 +11190,29 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
             # buat baris multi-nomor: buang "(X detik)" biar muat
             return re.sub(r"\s*\(\d+ detik\)", "", fmt or "-")
 
+        def _fmt_hms(seconds):
+            # detik → "HH:MM:SS" (biar cocok bukti "Try again in HH:MM:SS")
+            try:
+                s = int(seconds)
+                if s <= 0:
+                    return ""
+                h, rem = divmod(s, 3600)
+                m, sc = divmod(rem, 60)
+                return f"{h:02d}:{m:02d}:{sc:02d}"
+            except Exception:
+                return ""
+
         multi = len(numbers) > 1
         if sms_map and not multi:
             _num, _s = next(iter(sms_map.items()))
             if _s.get('awal_fmt'):
-                sms_lines += f"  Sms Awal : <b>{_html.escape(_s['awal_fmt'])}</b>\n"
+                _hms = _fmt_hms(_s.get('awal'))
+                _suf = f"  <code>[{_hms}]</code>" if _hms else ""
+                sms_lines += f"  Sms Awal : <b>{_html.escape(_s['awal_fmt'])}</b>{_suf}\n"
             if _s.get('akhir_fmt'):
-                sms_lines += f"  Sms Akhir: <b>{_html.escape(_s['akhir_fmt'])}</b>\n"
+                _hms2 = _fmt_hms(_s.get('akhir'))
+                _suf2 = f"  <code>[{_hms2}]</code>" if _hms2 else ""
+                sms_lines += f"  Sms Akhir: <b>{_html.escape(_s['akhir_fmt'])}</b>{_suf2}\n"
             if _s.get('jebol') is True:
                 sms_lines += f"  {_DOT} {em(E1,'✅')} <b>JEBOLEH — sms_wait udah kereset</b>\n"
             elif _s.get('jebol') is False:
