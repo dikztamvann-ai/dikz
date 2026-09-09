@@ -11190,13 +11190,29 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
             # buat baris multi-nomor: buang "(X detik)" biar muat
             return re.sub(r"\s*\(\d+ detik\)", "", fmt or "-")
 
+        def _fmt_hms(seconds):
+            # detik → "HH:MM:SS" (biar cocok bukti "Try again in HH:MM:SS")
+            try:
+                s = int(seconds)
+                if s <= 0:
+                    return ""
+                h, rem = divmod(s, 3600)
+                m, sc = divmod(rem, 60)
+                return f"{h:02d}:{m:02d}:{sc:02d}"
+            except Exception:
+                return ""
+
         multi = len(numbers) > 1
         if sms_map and not multi:
             _num, _s = next(iter(sms_map.items()))
             if _s.get('awal_fmt'):
-                sms_lines += f"  Sms Awal : <b>{_html.escape(_s['awal_fmt'])}</b>\n"
+                _hms = _fmt_hms(_s.get('awal'))
+                _suf = f"  <code>[{_hms}]</code>" if _hms else ""
+                sms_lines += f"  Sms Awal : <b>{_html.escape(_s['awal_fmt'])}</b>{_suf}\n"
             if _s.get('akhir_fmt'):
-                sms_lines += f"  Sms Akhir: <b>{_html.escape(_s['akhir_fmt'])}</b>\n"
+                _hms2 = _fmt_hms(_s.get('akhir'))
+                _suf2 = f"  <code>[{_hms2}]</code>" if _hms2 else ""
+                sms_lines += f"  Sms Akhir: <b>{_html.escape(_s['akhir_fmt'])}</b>{_suf2}\n"
             if _s.get('jebol') is True:
                 sms_lines += f"  {_DOT} {em(E1,'✅')} <b>JEBOLEH — sms_wait udah kereset</b>\n"
             elif _s.get('jebol') is False:
@@ -11396,6 +11412,25 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
 
     monitor_task = asyncio.create_task(_sms_monitor())
     await _safe_edit()
+
+    # Hitung countdown "HH:MM:SS" dari sms_wait detect terbesar — dipakai di
+    # teks banding supaya cocok dengan bukti screenshot "Try again in HH:MM:SS".
+    # Kalau gak ada nomor yang ke-detect, pipeline fallback pakai limit_hours.
+    _sms_countdown = None
+    try:
+        _sms_map_now = state.get('sms_map') or {}
+        _max_wait = 0
+        for _s in _sms_map_now.values():
+            _v = _s.get('awal')
+            if isinstance(_v, int) and _v > _max_wait:
+                _max_wait = _v
+        if _max_wait > 0:
+            _h, _rem = divmod(int(_max_wait), 3600)
+            _m, _sc = divmod(_rem, 60)
+            _sms_countdown = f"{_h:02d}:{_m:02d}:{_sc:02d}"
+    except Exception:
+        _sms_countdown = None
+
     try:
         res = await asyncio.wait_for(
             main_loop.run_in_executor(
@@ -11405,6 +11440,7 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
                     [str(n) for n in numbers],
                     db_cur=cur, db_conn=conn, progress_cb=_cb,
                     mode=mode, limit_hours=limit_hours,
+                    sms_countdown=_sms_countdown,
                     reply_wait=60,
                 ),
             ),
@@ -11558,12 +11594,29 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
     # berubah signifikan (turun >= 1 jam / jebol) sebelum monitor selesai.
     final_sms = ""
     sms_map = state.get('sms_map') or {}
+
+    def _hms_final(seconds):
+        # detik → "HH:MM:SS" untuk ringkasan akhir (cocok bukti screenshot)
+        try:
+            s = int(seconds)
+            if s <= 0:
+                return ""
+            h, rem = divmod(s, 3600)
+            m, sc = divmod(rem, 60)
+            return f"{h:02d}:{m:02d}:{sc:02d}"
+        except Exception:
+            return ""
+
     if len(sms_map) == 1:
         _num, _s = next(iter(sms_map.items()))
         if _s.get('awal_fmt'):
-            final_sms += f"  Sms Awal : <b>{_html.escape(_s['awal_fmt'])}</b>\n"
+            _hms_a = _hms_final(_s.get('awal'))
+            _suf_a = f"  <code>[{_hms_a}]</code>" if _hms_a else ""
+            final_sms += f"  Sms Awal : <b>{_html.escape(_s['awal_fmt'])}</b>{_suf_a}\n"
         if _s.get('akhir_fmt'):
-            final_sms += f"  Sms Akhir: <b>{_html.escape(_s['akhir_fmt'])}</b>\n"
+            _hms_k = _hms_final(_s.get('akhir'))
+            _suf_k = f"  <code>[{_hms_k}]</code>" if _hms_k else ""
+            final_sms += f"  Sms Akhir: <b>{_html.escape(_s['akhir_fmt'])}</b>{_suf_k}\n"
         if _s.get('jebol') is True:
             final_sms += f"  ⌁ {em(E1,'✅')} <b>JEBOLEH — sms_wait udah kereset</b>\n"
         elif _s.get('jebol') is False:
