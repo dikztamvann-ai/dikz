@@ -1,0 +1,27 @@
+name = "database-ivas"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+[assets]
+directory = "./public"
+run_worker_first = ["/api/*", "/ingest", "/sync", "/login", "/admin", "/"]
+
+# D1 binding — database_id diisi otomatis setelah `wrangler d1 create ivas_db`
+[[d1_databases]]
+binding = "DB"
+database_name = "ivas_db"
+database_id = "2ed0764d-14f9-46c5-8f03-808e058f9ec4"
+
+# Custom domain — dipasang setelah hostname final dikonfirmasi.
+# Catatan: underscore TIDAK valid di DNS. Gunakan tanda hubung, mis.
+#   database-ivas.makluxnxx.my.id
+# [[routes]]
+# pattern = "database-ivas.makluxnxx.my.id"
+# custom_domain = true
+
+# Custom domain dipasang lewat dashboard/route setelah deploy:
+#   database_ivas.makluxnxx.my.id
+#
+# Secrets (JANGAN taruh di sini, set via `wrangler secret put`):
+#   SYNC_KEY        — kunci bot → Worker (header x-sync-key)
+#   ADMIN_PASSWORD  — password login dashboard
