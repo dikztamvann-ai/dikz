@@ -1432,7 +1432,8 @@ def run_reset_otp_pipeline(numbers, db_cur=None, db_conn=None, message_template=
                 if not token:
                     print(f"[BANDING] sender#{s_idx} compose token gagal", flush=True)
                     return
-                appeal = pick_appeal_text("banding", nomor, jam, message_template)
+                appeal = pick_appeal_text("banding", nomor, jam, message_template,
+                                          sms_countdown=sms_countdown)
                 body = appeal + build_random_support_info(nomor, dev)
                 ok_send = False
                 send_err = ""
@@ -1530,7 +1531,8 @@ def run_reset_otp_pipeline(numbers, db_cur=None, db_conn=None, message_template=
                 if not (sess1 and lsd1):
                     return {"ok": False, "error": err_local or "no lsd",
                             "ua_kind": ua_kind, "proxy": bool(proxy)}
-                msg_v1 = pick_appeal_text("faq", nomor, jam, message_template)
+                msg_v1 = pick_appeal_text("faq", nomor, jam, message_template,
+                                          sms_countdown=sms_countdown)
                 r = submit_faq1(
                     nomor, em_addr, msg_v1, ua=web_ua,
                     sess=sess1, lsd=lsd1, jazoest=meta1.get("jazoest"),
@@ -1661,7 +1663,8 @@ def run_reset_otp_pipeline(numbers, db_cur=None, db_conn=None, message_template=
                 slot = _email_queue[idx]
                 email_addr = slot["addr"]
 
-                msg = pick_appeal_text("form", nomor, jam, message_template)
+                msg = pick_appeal_text("form", nomor, jam, message_template,
+                                       sms_countdown=sms_countdown)
                 r = {"ok": False, "error": "no attempt", "mailbox": email_addr}
                 for attempt in range(3):
                     if time.time() - _faq2_start > FAQ2_TOTAL_TIMEOUT:
@@ -1791,7 +1794,8 @@ def run_reset_otp_pipeline(numbers, db_cur=None, db_conn=None, message_template=
                 v3_imap_base[0] = imap_max_uid(v3_cfg)
             except Exception:
                 v3_imap_base[0] = 0
-            appeal = pick_appeal_text("banding", nomor, jam, message_template)
+            appeal = pick_appeal_text("banding", nomor, jam, message_template,
+                                       sms_countdown=sms_countdown)
             print(f"[FAQ3] {nomor} start n={faq3_n} from={v3_cfg.get('user')} "
                   f"imap_base={v3_imap_base[0]}", flush=True)
             r = submit_form_v3(
@@ -1832,7 +1836,8 @@ def run_reset_otp_pipeline(numbers, db_cur=None, db_conn=None, message_template=
                 v4_imap_base[0] = imap_max_uid_v4(v4_cfg)
             except Exception:
                 v4_imap_base[0] = 0
-            appeal = pick_appeal_text("banding", nomor, jam, message_template)
+            appeal = pick_appeal_text("banding", nomor, jam, message_template,
+                                       sms_countdown=sms_countdown)
             print(f"[FAQ4] {nomor} start n={faq4_n} from={v4_cfg.get('user')} "
                   f"imap_base={v4_imap_base[0]}", flush=True)
             r = submit_form_v4(
