@@ -11396,6 +11396,25 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
 
     monitor_task = asyncio.create_task(_sms_monitor())
     await _safe_edit()
+
+    # Hitung countdown "HH:MM:SS" dari sms_wait detect terbesar — dipakai di
+    # teks banding supaya cocok dengan bukti screenshot "Try again in HH:MM:SS".
+    # Kalau gak ada nomor yang ke-detect, pipeline fallback pakai limit_hours.
+    _sms_countdown = None
+    try:
+        _sms_map_now = state.get('sms_map') or {}
+        _max_wait = 0
+        for _s in _sms_map_now.values():
+            _v = _s.get('awal')
+            if isinstance(_v, int) and _v > _max_wait:
+                _max_wait = _v
+        if _max_wait > 0:
+            _h, _rem = divmod(int(_max_wait), 3600)
+            _m, _sc = divmod(_rem, 60)
+            _sms_countdown = f"{_h:02d}:{_m:02d}:{_sc:02d}"
+    except Exception:
+        _sms_countdown = None
+
     try:
         res = await asyncio.wait_for(
             main_loop.run_in_executor(
@@ -11405,6 +11424,7 @@ async def _process_fix_resetotp_background(numbers, user_id, message, context,
                     [str(n) for n in numbers],
                     db_cur=cur, db_conn=conn, progress_cb=_cb,
                     mode=mode, limit_hours=limit_hours,
+                    sms_countdown=_sms_countdown,
                     reply_wait=60,
                 ),
             ),
